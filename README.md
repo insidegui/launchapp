@@ -27,3 +27,5 @@ Example:
 If you want to just build and install manually, use `--skip-install`:
 
 `./build --skip-install`
+
+**Note: the build script will build for arm64. You can edit the build script and change the parameters passed to clang to build to another architecture. I only tested on arm64 tho.**
