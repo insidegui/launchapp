@@ -1,0 +1,81 @@
+#!/bin/bash
+
+DEVROOT=`xcode-select -p`
+SDKROOT="$DEVROOT/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
+JTOOL=`which jtool`
+OUTDIR="./output"
+ENTS="entitlements.xml"
+LOGFILE="$OUTDIR/build.log"
+SKIPINSTALL="--skip-install"
+DEVICEHOST=$1
+PRODUCTNAME="launchapp"
+EXECUTABLE="$OUTDIR/$PRODUCTNAME"
+REMOTEDIR="/usr/bin"
+REMOTEDEST="$REMOTEDIR/$PRODUCTNAME"
+
+if [ -z $DEVICEHOST ]; then
+    echo "You must specify a device host to install launchapp. Example:"
+    echo "./build root@192.168.0.113"
+    echo "If you just want to build and not install, run ./build --skip-install"
+    exit 1
+fi
+
+if [ ! -d $OUTDIR ]; then
+    mkdir -p $OUTDIR
+fi
+
+if [ -f $EXECUTABLE ]; then
+    rm $EXECUTABLE
+fi
+
+if [ ! -f $OUTDIR/jtool ]; then
+    if [ -z $JTOOL ]; then
+        echo "Jtool is not available, downloading..."
+        curl http://www.newosxbook.com/tools/jtool.tar --output $OUTDIR/jtool.tar
+        echo "Extracting Jtool to $OUTDIR/jtool"
+        cd $OUTDIR && tar -xf jtool.tar && cd ..
+        JTOOL="$OUTDIR/jtool"
+    fi
+else
+    JTOOL="$OUTDIR/jtool"
+fi
+
+echo "SDK root is $SDKROOT"
+
+echo "Building..."
+
+clang -framework Foundation -isysroot $SDKROOT -arch arm64 launchapp/main.m -o $EXECUTABLE &> $LOGFILE
+
+if [ $? -eq 0 ]; then
+    echo "Signing..."
+
+    $JTOOL --sign platform --ent $ENTS --inplace $EXECUTABLE &> $LOGFILE
+
+    if [ $? -eq 0 ]; then
+        if [ "$DEVICEHOST" != "$SKIPINSTALL" ]; then
+            echo "Installing to $DEVICEHOST:$REMOTEDEST..."
+            
+            scp $EXECUTABLE $DEVICEHOST:$REMOTEDEST &> $LOGFILE
+
+            if [ $? -eq 0 ]; then
+                echo "Copied to device! Executable available on device at $REMOTEDEST"
+                echo "DONE!"
+                exit 0
+            else
+                echo "Error copying to device. Check $LOGFILE for details"
+                exit 1
+            fi
+        else
+            echo "$SKIPINSTALL specified, not installing."
+            echo "The executable is available at $EXECUTABLE"
+            echo "DONE!"
+            exit 0
+        fi
+    else
+        echo "Signing failed. Check $LOGFILE for details"
+        exit 1
+    fi
+else
+    echo "Build failed. Check $LOGFILE for details"
+    exit 1
+fi
