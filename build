@@ -44,12 +44,12 @@ echo "SDK root is $SDKROOT"
 
 echo "Building..."
 
-clang -framework Foundation -isysroot $SDKROOT -arch arm64 launchapp/main.m -o $EXECUTABLE &> $LOGFILE
+clang -framework Foundation -miphoneos-version-min=11 -isysroot $SDKROOT -arch arm64 launchapp/main.m -o $EXECUTABLE &> $LOGFILE
 
 if [ $? -eq 0 ]; then
     echo "Signing..."
 
-    $JTOOL --sign platform --ent $ENTS --inplace $EXECUTABLE &> $LOGFILE
+    $JTOOL --sign --ent $ENTS --inplace $EXECUTABLE &> $LOGFILE
 
     if [ $? -eq 0 ]; then
         if [ "$DEVICEHOST" != "$SKIPINSTALL" ]; then
